@@ -1,0 +1,27 @@
+# Standard libraries
+import os
+import json
+import re
+import logging
+from datetime import datetime
+from copy import deepcopy
+from typing import Dict, Any, List, Optional
+
+# Third-party libraries
+import pandas as pd
+import spacy
+import pytesseract
+from PIL import Image
+from openai import OpenAI
+import pdfplumber
+from PyPDF2 import PdfReader
+from pdfminer.high_level import extract_text
+from dateutil import parser as dateparser
+from dateutil.parser import parse
+
+# Word document handling (python-docx)
+from docx import Document
+from docx.shared import Pt
+from docx.text.paragraph import Paragraph
+from docx.oxml import OxmlElement
+from docx.oxml.ns import qn

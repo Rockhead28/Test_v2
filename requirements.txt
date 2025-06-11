@@ -1,9 +1,18 @@
+# requirements.txt
+
+# Main Framework
 streamlit
+
+# OpenAI API
 openai
+
+# Document Reading
 python-docx
 pdfminer.six
-Pillow
 pytesseract
+Pillow
 pdfplumber
 PyPDF2
+
+# Utilities
 python-dateutil

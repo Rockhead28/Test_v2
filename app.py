@@ -42,7 +42,7 @@ def main():
                         st.session_state.extracted_text, api_key
                     )
         
-        if st.session_state.parsed__data:
+        if st.session_state.parsed_data:
             st.json(st.session_state.parsed_data)
 
     st.divider()

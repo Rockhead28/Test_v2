@@ -6,7 +6,14 @@
 # In[ ]:
 
 
-def convert_to_json_with_gpt(resume_text: str, api_key: str) -> dict:
+def convert_to_json_with_gpt(resume_text: str, api_key: str) -> Optional[dict]:
+    """
+    Parses resume text into a structured JSON object using the OpenAI API.
+    """
+    if not api_key:
+        st.error("OpenAI API key is missing.")
+        return None
+
     client = OpenAI(api_key=api_key)
 
     prompt = f"""
@@ -36,27 +43,24 @@ Resume text:
 """
 
     try:
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0
-        )
-
-        raw_output = response.choices[0].message.content
-
-        match = re.search(r"{.*}", raw_output, re.DOTALL)
-        if match:
-            json_text = match.group(0)
-        else:
-            st.error("No valid JSON found in GPT response.")
-            return {}
-
-        return json.loads(json_text)
-
-    except json.JSONDecodeError:
-        st.error("Failed to parse GPT response as JSON.")
-        return {}
-    except Exception as e:
-        st.error(f"GPT API call failed: {e}")
-        return {}
+            # Using response_format for reliable JSON output
+            response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                response_format={"type": "json_object"},
+                messages=[
+                    {"role": "system", "content": "You are a helpful assistant designed to output JSON."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0
+            )
+            json_output = response.choices[0].message.content
+            return json.loads(json_output)
+        except json.JSONDecodeError as e:
+            st.error(f"Failed to parse AI response as JSON. Error: {e}")
+            st.info("AI Response that failed to parse:")
+            st.code(response.choices[0].message.content, language='text')
+            return None
+        except Exception as e:
+            st.error(f"An error occurred during the GPT API call: {e}")
+            return None
 

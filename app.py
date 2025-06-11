@@ -2,9 +2,9 @@ import streamlit as st
 import os
 
 # Import your three modular components
-from text_extraction import ResumeParser
-from text_conversion import convert_to_json_with_gpt
-from placeholder_insertion import generate_resume
+from Text_Extraction import ResumeParser
+from Text_Conversion import convert_to_json_with_gpt
+from Placeholder_Insertion import generate_resume
 
 
 def main():

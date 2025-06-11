@@ -1,3 +1,8 @@
+from Text_Extraction import ResumeParser
+from Text_Conversion import convert_to_json_with_gpt
+from Placeholder_Insertion import generate_resume
+
+
 def main():
     st.set_page_config(layout="wide", page_title="AI Resume Builder")
     st.title("📄 AI-Powered Resume Builder")

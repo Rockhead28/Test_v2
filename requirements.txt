@@ -1,12 +1,9 @@
-# Main Framework
 streamlit
-
-# Data Handling & NLP
 pandas
 spacy
 
-# Spacy Model (IMPORTANT: Add the specific model you use)
-en_core_web_sm
+# Spacy Model - Direct Link for Deployment
+https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.1/en_core_web_sm-3.7.1-py3-none-any.whl
 
 # Document & Data Extraction
 pytesseract
@@ -19,4 +16,3 @@ python-docx
 
 # Utilities
 python-dateutil
-python-dotenv

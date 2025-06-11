@@ -5,6 +5,16 @@
 
 # In[ ]:
 
+import io
+from typing import Optional
+import streamlit as st
+
+# Import libraries from your requirements.txt
+from docx import Document
+from pdfminer.high_level import extract_text
+from PIL import Image
+import pytesseract
+
 
 class ResumeParser:
     """Reads resume content from DOCX, PDF, or image files."""

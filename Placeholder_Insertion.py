@@ -75,14 +75,17 @@ def replace_with_bullet_points(paragraph, key, bullet_points):
         new_run = new_p.add_run("• " + point)
         copy_run_formatting(template_run, new_run)
 
-def generate_resume(data, template_path: str, output_path: str) -> bool:
+# Your original main function, adapted to return a memory buffer for Streamlit
+def generate_resume(data: Dict[str, Any], template_path: str) -> Optional[io.BytesIO]:
     """Generates a resume by populating a .docx template with JSON data."""
     try:
+        # Streamlit passes a file-like object, so Document can open it directly
         doc = Document(template_path)
     except Exception as e:
         st.error(f"Error opening template file: {e}")
-        return False
+        return None
 
+    # --- Your original replacement logic begins (unchanged) ---
     # 1. Simple replacements
     simple_replacements = {
         "{NAME}": data.get("name", ""),
@@ -104,14 +107,10 @@ def generate_resume(data, template_path: str, output_path: str) -> bool:
         edu_blocks = []
         for entry in education_list:
             block_lines = []
-            if "degree" in entry:
-                block_lines.append(entry["degree"])
-            if "institution" in entry:
-                block_lines.append(entry["institution"])
-            if "year" in entry:
-                block_lines.append(entry["year"])
-            if "cgpa" in entry:
-                block_lines.append(f"CGPA: {entry['cgpa']}")
+            if "degree" in entry: block_lines.append(entry["degree"])
+            if "institution" in entry: block_lines.append(entry["institution"])
+            if "year" in entry: block_lines.append(entry["year"])
+            if "cgpa" in entry: block_lines.append(f"CGPA: {entry['cgpa']}")
             edu_blocks.append("\n".join(block_lines))
         formatted_education_string = "\n\n".join(edu_blocks)
 
@@ -178,12 +177,16 @@ def generate_resume(data, template_path: str, output_path: str) -> bool:
             tbl = table._tbl
             tbl.remove(template_row._tr)
 
-        break  # Apply work experience to only the first matching table
+        break
+    # --- Your original replacement logic ends ---
 
+    # *** NECESSARY CHANGE FOR STREAMLIT ***
+    # Instead of saving to a file path, save to an in-memory buffer
     try:
-        doc.save(output_path)
-        return True
+        doc_buffer = io.BytesIO()
+        doc.save(doc_buffer)
+        doc_buffer.seek(0)
+        return doc_buffer # Return the buffer
     except Exception as e:
-        st.error(f"Error saving output file: {e}")
-        return False
-
+        st.error(f"Error saving output file to memory: {e}")
+        return None

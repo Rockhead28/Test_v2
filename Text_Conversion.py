@@ -4,7 +4,11 @@
 # # Step 2: Conversion from text to json structured data
 
 # In[ ]:
+import json
+from typing import Optional
 
+import streamlit as st
+from openai import OpenAI
 
 def convert_to_json_with_gpt(resume_text: str, api_key: str) -> Optional[dict]:
     """

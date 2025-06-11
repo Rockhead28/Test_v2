@@ -47,24 +47,24 @@ Resume text:
 """
 
     try:
-            # Using response_format for reliable JSON output
-            response = client.chat.completions.create(
-                model="gpt-4o-mini",
-                response_format={"type": "json_object"},
-                messages=[
-                    {"role": "system", "content": "You are a helpful assistant designed to output JSON."},
-                    {"role": "user", "content": prompt}
-                ],
-                temperature=0
-            )
-            json_output = response.choices[0].message.content
-            return json.loads(json_output)
-        except json.JSONDecodeError as e:
-            st.error(f"Failed to parse AI response as JSON. Error: {e}")
-            st.info("AI Response that failed to parse:")
-            st.code(response.choices[0].message.content, language='text')
-            return None
-        except Exception as e:
-            st.error(f"An error occurred during the GPT API call: {e}")
-            return None
+        # Using response_format for reliable JSON output
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            response_format={"type": "json_object"},
+            messages=[
+                {"role": "system", "content": "You are a helpful assistant designed to output JSON."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0
+        )
+        json_output = response.choices[0].message.content
+        return json.loads(json_output)
+    except json.JSONDecodeError as e:
+        st.error(f"Failed to parse AI response as JSON. Error: {e}")
+        st.info("AI Response that failed to parse:")
+        st.code(response.choices[0].message.content, language='text')
+        return None
+    except Exception as e:
+        st.error(f"An error occurred during the GPT API call: {e}")
+        return None
 

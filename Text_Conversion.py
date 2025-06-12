@@ -34,8 +34,8 @@ Required fields:
     company_name (reformat font to only capitalize first letter as capital),
     duration,
     job_title,
-    job_description (as a list of bullet points),
-    achievements (if available, as list of bullet points)
+    job_description (as a list),
+    achievements (if available)
 }}
 
 Make sure work_experience is a list of entries, and fields like skills or job_description are lists, not strings.

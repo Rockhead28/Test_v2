@@ -1,19 +1,28 @@
 import io
-from typing import Dict, Any, Optional, List
 from copy import deepcopy
+from typing import Optional
+
 import streamlit as st
 from docx import Document
-from docx.table import _Row
 from docx.text.paragraph import Paragraph
 from docx.text.run import Run
 
-# --- HELPER FUNCTIONS ---
-# These helpers are well-written and do not need changes.
-def replace_text_in_paragraph(paragraph: Paragraph, key: str, value: Any):
-    """Replaces all occurrences of a key in a paragraph's runs."""
+# Your original helper functions (unchanged)
+def replace_text_in_paragraph(paragraph: Paragraph, key: str, value: str):
     for run in paragraph.runs:
         if key in run.text:
             run.text = run.text.replace(key, str(value))
+
+def copy_run_formatting(source_run: Run, target_run: Run):
+    if source_run is None or target_run is None:
+        return
+    target_run.font.name = source_run.font.name
+    target_run.font.size = source_run.font.size
+    target_run.font.bold = source_run.font.bold
+    target_run.font.italic = source_run.font.italic
+    target_run.font.underline = source_run.font.underline
+    if source_run.font.color and source_run.font.color.rgb:
+        target_run.font.color.rgb = source_run.font.color.rgb
 
 def copy_paragraph_formatting(source_paragraph: Paragraph, target_paragraph: Paragraph):
     target_paragraph.style = source_paragraph.style
@@ -25,116 +34,162 @@ def copy_paragraph_formatting(source_paragraph: Paragraph, target_paragraph: Par
     target_p_format.left_indent = p_format.left_indent
     target_p_format.right_indent = p_format.right_indent
 
-def replace_with_bullet_points(paragraph: Paragraph, key: str, bullet_points: List[str]):
-    """Replaces a placeholder with a list of bullet points, preserving formatting."""
-    if key not in paragraph.text:
+def replace_with_multiline_text(paragraph: Paragraph, key: str, formatted_text: str):
+    lines = formatted_text.split('\n')
+    template_run = None
+    for run in paragraph.runs:
+        if key in run.text:
+            template_run = run
+            break
+    if not template_run:
         return
-        
+    template_run.text = template_run.text.replace(key, lines[0])
+    for line in lines[1:]:
+        template_run.add_break()
+        template_run.text += line
+
+def replace_with_bullet_points(paragraph: Paragraph, key: str, bullet_points: list):
     if not bullet_points:
         replace_text_in_paragraph(paragraph, key, "")
         return
 
-    # Find a run with the placeholder to use as a style template
-    template_run = next((run for run in paragraph.runs if key in run.text), None)
+    template_run = None
+    for run in paragraph.runs:
+        if key in run.text:
+            template_run = run
+            break
     if not template_run:
         return
 
-    # Replace the placeholder key with the first bullet point in the original paragraph
-    replace_text_in_paragraph(paragraph, key, "• " + bullet_points[0])
+    parent = paragraph._parent
 
-    # Add subsequent bullet points as new paragraphs right after the current one
-    current_p_element = paragraph._p
-    for point in bullet_points[1:]:
-        new_p = paragraph._parent.add_paragraph()
+    if key == "{ACHIEVEMENTS}":
+        header_p = parent.add_paragraph()
+        copy_paragraph_formatting(paragraph, header_p)
+        header_run = header_p.add_run("Achievements:")
+        copy_run_formatting(template_run, header_run)
+        header_run.bold = True
+
+    paragraph._element.getparent().remove(paragraph._element)
+
+    for point in bullet_points:
+        new_p = parent.add_paragraph()
         copy_paragraph_formatting(paragraph, new_p)
         new_run = new_p.add_run("• " + point)
-        if template_run:
-            new_run.font.bold = template_run.font.bold
-            new_run.font.italic = template_run.font.italic
-            new_run.font.name = template_run.font.name
-            new_run.font.size = template_run.font.size
-        current_p_element.addnext(new_p._p)
-        current_p_element = new_p._p
+        copy_run_formatting(template_run, new_run)
 
-# --- MAIN GENERATION FUNCTION ---
-def generate_resume(data: Dict[str, Any], template_path: str) -> Optional[io.BytesIO]:
-    """Generates a resume by populating a .docx template with JSON data."""
+# Your main function, adapted for Streamlit
+def generate_resume(data: dict, template_path: str) -> Optional[io.BytesIO]:
+    """
+    Generates a resume by populating a .docx template with JSON data.
+    This version returns an in-memory buffer for Streamlit.
+    """
     try:
         doc = Document(template_path)
     except Exception as e:
-        st.error(f"Error opening template file '{template_path}': {e}")
+        st.error(f"Error opening template file: {e}")
         return None
 
-    # --- Simple key-value replacements ---
-    replacements = {
+    # 1. Simple replacements (Your original logic)
+    simple_replacements = {
         "{NAME}": data.get("name", ""),
         "{CONTACT}": data.get("contact_number", ""),
         "{EMAIL}": data.get("email", ""),
-        "{SKILLS}": ", ".join(data.get("skills", [])),
-        "{LANGUAGES}": ", ".join(data.get("languages", [])),
-        "{EDUCATION}": "\n\n".join(
-            [
-                f"{edu.get('degree', '')}\n{edu.get('institution', '')}\n{edu.get('year', '')}"
-                for edu in data.get("education", [])
-            ]
-        ),
     }
 
     for table in doc.tables:
         for row in table.rows:
             for cell in row.cells:
-                for p in cell.paragraphs:
-                    for key, value in replacements.items():
-                        replace_text_in_paragraph(p, key, value)
+                for paragraph in cell.paragraphs:
+                    for key, value in simple_replacements.items():
+                        if key in paragraph.text:
+                            replace_text_in_paragraph(paragraph, key, value)
 
-    # --- Dynamic Work Experience Table Population ---
-    # This section is now corrected to avoid the AttributeError
-    work_exp_placeholders = {"{COMPANYNAME}", "{JOBDESCRIPTION}", "{ACHIEVEMENTS}"}
+    # 2. Education (Your original logic)
+    education_list = data.get("education", [])
+    if education_list:
+        edu_blocks = []
+        for entry in education_list:
+            block_lines = []
+            if "degree" in entry: block_lines.append(entry["degree"])
+            if "institution" in entry: block_lines.append(entry["institution"])
+            if "year" in entry: block_lines.append(entry["year"])
+            if "cgpa" in entry: block_lines.append(f"CGPA: {entry['cgpa']}")
+            edu_blocks.append("\n".join(block_lines))
+        formatted_education_string = "\n\n".join(edu_blocks)
+
+        for table in doc.tables:
+            for row in table.rows:
+                for cell in row.cells:
+                    for p in cell.paragraphs:
+                        if "{EDUCATION}" in p.text:
+                            replace_with_multiline_text(p, "{EDUCATION}", formatted_education_string)
+
+    # 3. Skills and Languages (Your original logic)
+    list_replacements = {
+        "{SKILLS}": data.get("skills", []),
+        "{LANGUAGES}": data.get("languages", [])
+    }
 
     for table in doc.tables:
-        # Find the single row that acts as a template
-        template_info = None
+        for row in table.rows:
+            for cell in row.cells:
+                for p in list(cell.paragraphs):
+                    for key, value_list in list_replacements.items():
+                        if key in p.text:
+                            replace_with_bullet_points(p, key, value_list)
+
+    # 4. Work Experience (Your original logic)
+    work_exp_placeholders = {
+        "{COMPANYNAME}", "{DURATION}", "{JOBTITLE}",
+        "{JOBDESCRIPTION}", "{ACHIEVEMENTS}"
+    }
+
+    for table in doc.tables:
+        template_rows_info = []
         for i, row in enumerate(table.rows):
             row_text = "".join(cell.text for cell in row.cells)
             if any(ph in row_text for ph in work_exp_placeholders):
-                template_info = {'row': row, 'index': i}
-                break # Found our template, stop searching
+                template_rows_info.append({'row': row, 'index': i})
 
-        if not template_info:
-            continue # This table is not for work experience, check the next one
+        if not template_rows_info:
+            continue
 
-        template_row = template_info['row']
-        template_index = template_info['index']
-        
-        # Insert new rows for each work experience entry, starting from the bottom
-        for experience in reversed(data.get("work_experience", [])):
-            new_row_elem = deepcopy(template_row._element)
-            # Insert the new row element right after the original template's position
-            table._tbl.insert(template_index + 1, new_row_elem)
-            new_row = table.rows[template_index + 1]
+        template_rows = [info['row'] for info in template_rows_info]
 
-            # Populate the newly created row
-            for cell in new_row.cells:
-                for p in list(cell.paragraphs):
-                    replace_text_in_paragraph(p, "{COMPANYNAME}", experience.get("company_name", ""))
-                    replace_text_in_paragraph(p, "{DURATION}", experience.get("duration", ""))
-                    replace_text_in_paragraph(p, "{JOBTITLE}", experience.get("job_title", ""))
-                    
-                    if "{JOBDESCRIPTION}" in p.text:
-                        replace_with_bullet_points(p, "{JOBDESCRIPTION}", experience.get("job_description", []))
-                    if "{ACHIEVEMENTS}" in p.text:
-                        replace_with_bullet_points(p, "{ACHIEVEMENTS}", experience.get("achievements", []))
-        
-        # After adding all populated rows, remove the original template row
-        table._tbl.remove(template_row._tr)
-        break # Assume we only process one work experience table
+        for experience in data.get("work_experience", []):
+            for template_row in template_rows:
+                new_row_elem = deepcopy(template_row._element)
+                table._tbl.append(new_row_elem)
+                new_row = table.rows[-1]
 
-    # Save to in-memory buffer for Streamlit
+                for cell in new_row.cells:
+                    for p in list(cell.paragraphs):
+                        replace_text_in_paragraph(p, "{COMPANYNAME}", experience.get("company_name", ""))
+                        replace_text_in_paragraph(p, "{DURATION}", experience.get("duration", ""))
+                        replace_text_in_paragraph(p, "{JOBTITLE}", experience.get("job_title", ""))
+
+                        if "{JOBDESCRIPTION}" in p.text:
+                            jd_list = experience.get("job_description", [])
+                            replace_with_bullet_points(p, "{JOBDESCRIPTION}", jd_list)
+                        
+                        if "{ACHIEVEMENTS}" in p.text:
+                            achievements_list = experience.get("achievements", [])
+                            replace_with_bullet_points(p, "{ACHIEVEMENTS}", achievements_list)
+
+        for template_row in reversed(template_rows):
+            tbl = table._tbl
+            tbl.remove(template_row._tr)
+
+        break
+
+    # *** THIS IS THE ONLY SIGNIFICANT CHANGE FOR STREAMLIT ***
+    # Instead of saving to a file path, save to an in-memory buffer
     try:
         doc_buffer = io.BytesIO()
         doc.save(doc_buffer)
         doc_buffer.seek(0)
-        return doc_buffer
+        return doc_buffer # Return the buffer for the download button
     except Exception as e:
         st.error(f"Error saving output file to memory: {e}")
         return None

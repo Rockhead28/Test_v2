@@ -13,6 +13,7 @@ pytesseract
 Pillow
 pdfplumber
 PyPDF2
+pdf2image
 
 # Utilities
 python-dateutil

@@ -23,7 +23,6 @@ def main():
     st.divider()
 
     # --- API KEY HANDLING ---
-    # Get OpenAI API Key from Streamlit Secrets for security
     api_key = st.secrets.get("OPENAI_API_KEY")
     if not api_key:
         st.error("🛑 OPENAI_API_KEY not found in Streamlit Secrets.")
@@ -31,7 +30,6 @@ def main():
         st.stop()
 
     # --- DEFINE TEMPLATE PATH ---
-    # The template is in the repository, so we define its path directly.
     template_path = "template table.docx"
     if not os.path.exists(template_path):
         st.error(f"🛑 Template file not found at '{template_path}'.")
@@ -39,24 +37,40 @@ def main():
         st.stop()
 
     # --- INITIALIZE SESSION STATE ---
-    # This helps persist data across user interactions
     if "extracted_text" not in st.session_state:
         st.session_state.extracted_text = None
     if "parsed_data" not in st.session_state:
         st.session_state.parsed_data = None
+    # NEW: Add a session state to hold the generated document buffer
+    if "generated_doc_buffer" not in st.session_state:
+        st.session_state.generated_doc_buffer = None
+
 
     # --- UI LAYOUT AND WORKFLOW ---
-    st.header("Step 1: Upload a Resume")
-    
-    uploaded_resume = st.file_uploader(
-        "Upload a resume file to extract its content.",
-        type=["pdf", "docx", "png", "jpg", "jpeg"],
-        key="resume_uploader",
-        label_visibility="collapsed"
-    )
+    st.header("Step 1: Upload a Resume and Convert")
 
-    # This block triggers the entire workflow once a file is uploaded.
-    if uploaded_resume:
+    # --- Use a form to group the uploader and the button ---
+    with st.form(key="resume_form"):
+        uploaded_resume = st.file_uploader(
+            "Upload a resume file to extract its content.",
+            type=["pdf", "docx", "png", "jpg", "jpeg"],
+            label_visibility="collapsed"
+        )
+        
+        # --- NEW: The "Convert" button that submits the form ---
+        submitted = st.form_submit_button(
+            "Convert Resume", 
+            type="primary", 
+            use_container_width=True
+        )
+
+    # --- This block now only runs AFTER the "Convert" button is clicked ---
+    if submitted and uploaded_resume:
+        # Clear previous results before starting a new run
+        st.session_state.extracted_text = None
+        st.session_state.parsed_data = None
+        st.session_state.generated_doc_buffer = None
+
         with st.spinner("Step 1/3: Reading resume file..."):
             parser = ResumeParser()
             st.session_state.extracted_text = parser.read_file(uploaded_resume)
@@ -69,29 +83,32 @@ def main():
         
         if st.session_state.parsed_data:
             with st.spinner("Step 3/3: Generating new resume from template..."):
-                # This is the final step, using the local template path
-                generated_doc_buffer = generate_resume(st.session_state.parsed_data, template_path)
-                
-                if generated_doc_buffer:
-                    st.success("🎉 Resume processed and new document generated!")
-                    
-                    st.download_button(
-                        label="⬇️ Download Generated Resume",
-                        data=generated_doc_buffer,
-                        file_name=f"Generated_Resume_{st.session_state.parsed_data.get('name', 'candidate').replace(' ', '_')}.docx",
-                        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                        use_container_width=True,
-                        type="primary"
-                    )
-                else:
-                    st.error("Failed to generate the document from the template.")
+                st.session_state.generated_doc_buffer = generate_resume(st.session_state.parsed_data, template_path)
     
+    # --- NEW: This section is now outside the processing block ---
+    # It will always show the download button if a document has been generated.
+    if st.session_state.generated_doc_buffer:
+        st.success("🎉 Resume processed and new document generated!")
+        
+        st.download_button(
+            label="⬇️ Download Generated Resume",
+            data=st.session_state.generated_doc_buffer,
+            file_name=f"Generated_Resume_{st.session_state.parsed_data.get('name', 'candidate').replace(' ', '_')}.docx",
+            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            use_container_width=True,
+            type="primary"
+        )
+    # Handle the case where the final step fails after processing
+    elif submitted and not st.session_state.generated_doc_buffer:
+         st.error("Processing complete, but failed to generate the final document.")
+
+
     st.divider()
 
-    # --- Display Results Section ---
+    # --- Display Results Section (No changes needed here) ---
     st.header("Processing Results")
     if not uploaded_resume:
-        st.info("Upload a resume to see the extracted text and parsed data here.")
+        st.info("Upload a resume and click 'Convert' to see the results here.")
 
     col1, col2 = st.columns(2)
     with col1:
@@ -106,7 +123,8 @@ def main():
         if st.session_state.parsed_data:
             st.json(st.session_state.parsed_data)
         else:
-            st.json({},)
+            # Display an empty-looking JSON object as a placeholder
+            st.json({})
 
 
 if __name__ == "__main__":

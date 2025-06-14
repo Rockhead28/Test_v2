@@ -93,7 +93,8 @@ def main():
         st.download_button(
             label="⬇️ Download Generated Resume",
             data=st.session_state.generated_doc_buffer,
-            file_name=f"Generated_Resume_{st.session_state.parsed_data.get('name', 'candidate').replace(' ', '_')}.docx",
+            # Output File Name
+            file_name=f"_Resume_{st.session_state.parsed_data.get('name', 'candidate').replace(' ', '_')}.docx",
             mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
             use_container_width=True,
             type="primary"
